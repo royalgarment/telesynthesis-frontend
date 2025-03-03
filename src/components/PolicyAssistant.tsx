@@ -7,6 +7,7 @@ interface AiResponse {
     policy_name: string;
     response: string;
     disclaimer: string | null;
+    disclaimer_agreed: boolean;
 }
 
 const socket: Socket = io("http://localhost:5000", {
@@ -24,7 +25,9 @@ export default function PolicyAssistant() {
     const [policyContext, setPolicyContext] = useState<string | null>(null);
     const [policyColor, setPolicyColor] = useState<string>("#ffffff");
     const [disclaimer, setDisclaimer] = useState<string | null>(null);
+    const [disclaimerAgreed, setDisclaimerAgreed] = useState<boolean>(false);
     const [requiresDisclaimer, setRequiresDisclaimer] = useState<boolean>(false);
+    const [clarificationQuestion, setClarificationQuestion] = useState<string | null>(null);
 
     useEffect(() => {
         socket.on("transcript_update", (data: { transcript: string }) => {
@@ -41,28 +44,38 @@ export default function PolicyAssistant() {
                 setPolicyContext(null);
                 setPolicyColor("#ffffff");
                 setRequiresDisclaimer(false);
+                setDisclaimer(null);
+                setDisclaimerAgreed(false);
             }
-            setDisclaimer(null);
             setAiResponse("");
+            setClarificationQuestion(null);
         });
 
         socket.on("ai_response", (data: AiResponse) => {
             console.log("Received AI response:", data);
             setAiResponse(data.response);
-            setPolicyContext(data.policy_name === "general" ? null : data.policy_name); // Update policyContext
+            setPolicyContext(data.policy_name === "general" ? null : data.policy_name);
             if (data.disclaimer && requiresDisclaimer) {
                 setDisclaimer(data.disclaimer);
+                setDisclaimerAgreed(data.disclaimer_agreed);
             } else {
                 setDisclaimer(null);
+                setDisclaimerAgreed(false);
             }
+        });
+
+        socket.on("clarification_needed", (data: { question: string }) => {
+            console.log("Clarification needed:", data.question);
+            setClarificationQuestion(data.question);
         });
 
         return () => {
             socket.off("transcript_update");
             socket.off("policy_update");
             socket.off("ai_response");
+            socket.off("clarification_needed");
         };
-    }, [requiresDisclaimer]); // Dependency to re-evaluate disclaimer logic
+    }, [requiresDisclaimer]);
 
     return (
         <div
@@ -87,6 +100,12 @@ export default function PolicyAssistant() {
                         <strong>Transcript:</strong> {transcript}
                     </p>
                 </div>
+                {clarificationQuestion && (
+                    <div className="mt-4 p-4 bg-orange-100 rounded">
+                        <p className="text-orange-700 font-semibold">Ask the Customer:</p>
+                        <p className="text-gray-800">{clarificationQuestion}</p>
+                    </div>
+                )}
                 {aiResponse && (
                     <div className="mt-4 p-4 border rounded shadow-sm">
                         <h3 className="text-lg font-semibold">AI Response</h3>
@@ -94,7 +113,10 @@ export default function PolicyAssistant() {
                     </div>
                 )}
                 {disclaimer && requiresDisclaimer && (
-                    <div className="mt-4 p-4 bg-yellow-100 rounded">
+                    <div
+                        className="mt-4 p-4 rounded"
+                        style={{ backgroundColor: disclaimerAgreed ? policyColor : "#ffcccc" }}
+                    >
                         <p className="text-red-500 font-semibold">Disclaimer:</p>
                         <TooltipComponent content={disclaimer} position="BottomCenter">
                             <p className="text-gray-700">{disclaimer}</p>

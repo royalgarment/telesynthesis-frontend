@@ -47,7 +47,7 @@ export default function useAudioRecorder(
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "inactive"
     ) {
-      mediaRecorderRef.current.start(500); // Send chunks every 500ms
+      mediaRecorderRef.current.start(2000); // Increased from 500ms to 2000ms
       setRecording(true);
       console.log("Recording started...");
     }

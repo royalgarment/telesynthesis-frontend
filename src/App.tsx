@@ -1,4 +1,4 @@
-import PolicyAssistant from "./components/PolicyAssistant";
+import PolicyAssistant from "./components/ui/PolicyAssistant";
 
 function App() {
   return (
